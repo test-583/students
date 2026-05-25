@@ -1,0 +1,130 @@
+# ============================================================
+#  STUDENT EVENT SYSTEM — COMPLETE DEPLOYMENT GUIDE
+#  Follow steps in ORDER. Do not skip any step.
+# ============================================================
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ STEP 1: SET UP FREE MYSQL DATABASE (Clever Cloud)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. Go to → https://www.clever-cloud.com
+2. Click "Sign Up" → use your Google/GitHub account
+3. After login → click "Create an add-on"
+4. Choose "MySQL" → select FREE plan → click Create
+5. Once created, click your MySQL add-on
+6. Go to "Dashboard" tab → note down:
+      HOST     → (something like xyz.mysql.clever-cloud.com)
+      USER     → (your db username)
+      PASSWORD → (your db password)
+      DB NAME  → (your database name)
+      PORT     → usually 3306
+7. Go to "Queries" or use any MySQL tool to run the SQL from:
+      database/schema.sql
+   Just copy-paste all lines and run them.
+
+✅ Database is ready!
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ STEP 2: DEPLOY BACKEND TO RENDER (Free)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. Create free account at → https://github.com (if you don't have one)
+2. Create a new repository called "student-event-backend"
+3. Upload your entire "backend" folder files to GitHub
+   (drag and drop all files in the GitHub web interface)
+4. Go to → https://render.com → Sign up with GitHub
+5. Click "New +" → "Web Service"
+6. Connect your GitHub repo → "student-event-backend"
+7. Fill in these settings:
+      Name:          student-event-backend (or anything)
+      Environment:   Node
+      Build Command: npm install
+      Start Command: node server.js
+8. Scroll down → click "Add Environment Variable"
+   Add these one by one using your Clever Cloud values:
+      DB_HOST     = (your clever cloud host)
+      DB_USER     = (your clever cloud user)
+      DB_PASSWORD = (your clever cloud password)
+      DB_NAME     = (your clever cloud db name)
+      DB_PORT     = 3306
+9. Click "Create Web Service"
+10. Wait 2-3 minutes → Render gives you a URL like:
+      https://student-event-backend.onrender.com
+
+✅ Copy that URL. Backend is live!
+
+NOTE: First visit takes ~30 seconds (free tier sleeps).
+      That is normal! Just wait.
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ STEP 3: UPDATE API URL IN FRONTEND
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. Open frontend/app.js
+2. Find this line:
+      const API = "https://YOUR-RENDER-APP-NAME.onrender.com";
+3. Replace it with your actual Render URL:
+      const API = "https://student-event-backend.onrender.com";
+4. Save the file.
+
+✅ Done!
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ STEP 4: DEPLOY FRONTEND TO NETLIFY (Free)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. Go to → https://netlify.com → Sign up (free)
+2. After login → click "Add new site" → "Deploy manually"
+3. Just DRAG AND DROP your entire "frontend" folder
+   onto the Netlify upload area
+4. Wait 30 seconds → Netlify gives you a URL like:
+      https://random-name-12345.netlify.app
+5. You can rename this in Site Settings → Site Name
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ STEP 5: TEST YOUR DEPLOYED PROJECT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. Open your Netlify URL in browser
+2. Sign up as a student
+3. Login as student → see dashboard → register for events
+4. Login as admin:
+      Email:    admin@college.com
+      Password: admin123
+5. Create events from admin panel
+6. Go back to student account → register for events
+
+✅ Everything should work!
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ TROUBLESHOOTING
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Problem: "Cannot connect to server"
+Fix: Wait 30 seconds and try again (Render free tier wakes up slowly)
+
+Problem: Login not working
+Fix: Make sure you ran the schema.sql on Clever Cloud
+
+Problem: Events not loading
+Fix: Open browser console (F12) → check for error messages
+     Make sure API URL in app.js is correct
+
+Problem: "CORS error" in console
+Fix: Double-check the Render URL in app.js has no trailing slash
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ DEFAULT CREDENTIALS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Admin:
+  Email:    admin@college.com
+  Password: admin123
+
+Students: Register yourself on the signup page

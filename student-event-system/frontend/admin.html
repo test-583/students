@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Admin – Student Event System</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<!-- ── Navbar ──────────────────────────────────────────────────── -->
+<nav class="navbar">
+  <div class="brand">🎓 EventHub — Admin</div>
+  <div class="user-info">
+    <span id="welcomeText">Admin</span>
+    <button class="btn-logout" onclick="logout()">Logout</button>
+  </div>
+</nav>
+
+<div class="container">
+
+  <!-- Stats -->
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="number" id="totalEvents">0</div>
+      <div class="label">Total Events</div>
+    </div>
+    <div class="stat-card">
+      <div class="number" id="totalReg">0</div>
+      <div class="label">Total Registrations</div>
+    </div>
+  </div>
+
+  <!-- Create Event Form -->
+  <div class="card">
+    <h3>➕ Create New Event</h3>
+    <div class="alert" id="formMsg"></div>
+
+    <div class="form-row">
+      <div>
+        <input type="text" id="title" placeholder="Event Title *" />
+      </div>
+      <div>
+        <input type="text" id="venue" placeholder="Venue *" />
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div>
+        <input type="date" id="date" />
+      </div>
+      <div>
+        <input type="text" id="time" placeholder="Time (e.g. 10:00 AM)" />
+      </div>
+    </div>
+
+    <textarea id="description" placeholder="Event description (optional)"></textarea>
+
+    <button class="btn-create" onclick="createEvent()">Create Event</button>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tab-bar">
+    <button class="tab-btn active" onclick="switchTab('events', this)">All Events</button>
+    <button class="tab-btn" onclick="switchTab('regs', this)">Registrations</button>
+  </div>
+
+  <div class="alert" id="msg"></div>
+
+  <!-- Events Tab -->
+  <div id="tab-events">
+    <div class="events-grid" id="eventsList">
+      <div class="empty-state"><div class="icon">⏳</div>Loading...</div>
+    </div>
+  </div>
+
+  <!-- Registrations Tab -->
+  <div id="tab-regs" style="display:none">
+    <div class="card" style="overflow-x:auto">
+      <table id="regTable" style="width:100%; border-collapse:collapse; font-size:0.9rem;">
+        <thead>
+          <tr style="background:#f5f5f5;">
+            <th style="padding:10px; text-align:left; border-bottom:1px solid #ddd;">Student</th>
+            <th style="padding:10px; text-align:left; border-bottom:1px solid #ddd;">Email</th>
+            <th style="padding:10px; text-align:left; border-bottom:1px solid #ddd;">Event</th>
+            <th style="padding:10px; text-align:left; border-bottom:1px solid #ddd;">Registered On</th>
+          </tr>
+        </thead>
+        <tbody id="regBody">
+          <tr><td colspan="4" style="padding:20px; text-align:center; color:#999;">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<script src="app.js"></script>
+<script>
+  // Redirect if not admin
+  const user = getUser();
+  if (!user) window.location.href = 'index.html';
+  if (user && user.role !== 'admin') window.location.href = 'dashboard.html';
+
+  document.getElementById('welcomeText').textContent = `Hello, ${user.name}!`;
+
+  // ─── Load All Events ───────────────────────────────────────────
+  async function loadEvents() {
+    try {
+      const res  = await fetch(`${API}/api/events`);
+      const data = await res.json();
+      const events = data.events || [];
+
+      document.getElementById('totalEvents').textContent = events.length;
+
+      if (events.length === 0) {
+        document.getElementById('eventsList').innerHTML =
+          '<div class="empty-state"><div class="icon">📅</div>No events created yet.</div>';
+        return;
+      }
+
+      document.getElementById('eventsList').innerHTML = events.map(e => `
+        <div class="event-card" id="card-${e.id}">
+          <h3>${e.title}</h3>
+          <div class="event-meta"><span>📅</span> ${formatDate(e.date)}</div>
+          <div class="event-meta"><span>🕐</span> ${e.time || 'TBA'}</div>
+          <div class="event-meta"><span>📍</span> ${e.venue}</div>
+          <p class="event-desc">${e.description || ''}</p>
+          <button class="btn-delete" onclick="deleteEvent(${e.id}, this)">🗑 Delete Event</button>
+        </div>
+      `).join('');
+    } catch {
+      document.getElementById('eventsList').innerHTML =
+        '<div class="empty-state"><div class="icon">❌</div>Could not load events.</div>';
+    }
+  }
+
+  // ─── Load All Registrations ────────────────────────────────────
+  async function loadRegistrations() {
+    try {
+      const res  = await fetch(`${API}/api/register/all`);
+      const data = await res.json();
+      const regs = data.registrations || [];
+
+      document.getElementById('totalReg').textContent = regs.length;
+
+      if (regs.length === 0) {
+        document.getElementById('regBody').innerHTML =
+          '<tr><td colspan="4" style="padding:20px; text-align:center; color:#999;">No registrations yet.</td></tr>';
+        return;
+      }
+
+      document.getElementById('regBody').innerHTML = regs.map(r => `
+        <tr>
+          <td style="padding:10px; border-bottom:1px solid #eee;">${r.student_name}</td>
+          <td style="padding:10px; border-bottom:1px solid #eee;">${r.email}</td>
+          <td style="padding:10px; border-bottom:1px solid #eee;">${r.event_title}</td>
+          <td style="padding:10px; border-bottom:1px solid #eee;">${new Date(r.registered_at).toLocaleDateString('en-IN')}</td>
+        </tr>
+      `).join('');
+    } catch {
+      document.getElementById('regBody').innerHTML =
+        '<tr><td colspan="4" style="padding:20px; text-align:center; color:red;">Could not load registrations.</td></tr>';
+    }
+  }
+
+  // ─── Create Event ──────────────────────────────────────────────
+  async function createEvent() {
+    const title       = document.getElementById('title').value.trim();
+    const venue       = document.getElementById('venue').value.trim();
+    const date        = document.getElementById('date').value;
+    const time        = document.getElementById('time').value.trim();
+    const description = document.getElementById('description').value.trim();
+
+    if (!title || !venue || !date) {
+      return showMsg('formMsg', 'Title, venue and date are required');
+    }
+
+    try {
+      const res  = await fetch(`${API}/api/events`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, venue, date, time, description, userId: user.id })
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        showMsg('formMsg', '✅ ' + data.message, 'success');
+        // Clear form
+        ['title','venue','date','time','description'].forEach(id => document.getElementById(id).value = '');
+        loadEvents();
+        loadRegistrations();
+      } else {
+        showMsg('formMsg', data.message);
+      }
+    } catch {
+      showMsg('formMsg', 'Error creating event. Try again.');
+    }
+  }
+
+  // ─── Delete Event ──────────────────────────────────────────────
+  async function deleteEvent(id, btn) {
+    if (!confirm('Delete this event? All registrations will also be removed.')) return;
+
+    btn.textContent = 'Deleting...';
+    btn.disabled = true;
+
+    try {
+      const res  = await fetch(`${API}/api/events/${id}`, { method: 'DELETE' });
+      const data = await res.json();
+
+      if (data.success) {
+        document.getElementById(`card-${id}`).remove();
+        showMsg('msg', '✅ Event deleted', 'success');
+        loadRegistrations();
+        const remaining = document.querySelectorAll('.event-card').length;
+        document.getElementById('totalEvents').textContent = remaining;
+      } else {
+        showMsg('msg', data.message);
+        btn.disabled = false;
+        btn.textContent = '🗑 Delete Event';
+      }
+    } catch {
+      showMsg('msg', 'Error deleting event.');
+      btn.disabled = false;
+      btn.textContent = '🗑 Delete Event';
+    }
+  }
+
+  // ─── Tab Switching ─────────────────────────────────────────────
+  function switchTab(tab, el) {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    el.classList.add('active');
+    document.getElementById('tab-events').style.display = tab === 'events' ? 'block' : 'none';
+    document.getElementById('tab-regs').style.display   = tab === 'regs'   ? 'block' : 'none';
+  }
+
+  // ─── Init ──────────────────────────────────────────────────────
+  loadEvents();
+  loadRegistrations();
+</script>
+</body>
+</html>

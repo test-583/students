@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Dashboard – Student Event System</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<!-- ── Navbar ──────────────────────────────────────────────────── -->
+<nav class="navbar">
+  <div class="brand">🎓 EventHub</div>
+  <div class="user-info">
+    <span id="welcomeText">Welcome!</span>
+    <button class="btn-logout" onclick="logout()">Logout</button>
+  </div>
+</nav>
+
+<!-- ── Main Content ───────────────────────────────────────────── -->
+<div class="container">
+
+  <!-- Stats -->
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="number" id="totalEvents">0</div>
+      <div class="label">Total Events</div>
+    </div>
+    <div class="stat-card">
+      <div class="number" id="myCount">0</div>
+      <div class="label">My Registrations</div>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tab-bar">
+    <button class="tab-btn active" onclick="switchTab('all', this)">All Events</button>
+    <button class="tab-btn" onclick="switchTab('mine', this)">My Events</button>
+  </div>
+
+  <div class="alert" id="msg"></div>
+
+  <!-- All Events Tab -->
+  <div id="tab-all">
+    <div class="events-grid" id="allEventsList">
+      <div class="empty-state"><div class="icon">⏳</div>Loading events...</div>
+    </div>
+  </div>
+
+  <!-- My Registrations Tab -->
+  <div id="tab-mine" style="display:none">
+    <div class="events-grid" id="myEventsList">
+      <div class="empty-state"><div class="icon">⏳</div>Loading...</div>
+    </div>
+  </div>
+
+</div>
+
+<script src="app.js"></script>
+<script>
+  // Redirect to login if not logged in
+  const user = getUser();
+  if (!user) window.location.href = 'index.html';
+  if (user && user.role === 'admin') window.location.href = 'admin.html';
+
+  // Show welcome message
+  document.getElementById('welcomeText').textContent = `Hello, ${user.name}!`;
+
+  let allEvents = [];
+  let myEventIds = [];
+
+  // ─── Load All Events ───────────────────────────────────────────
+  async function loadAllEvents() {
+    try {
+      const res  = await fetch(`${API}/api/events`);
+      const data = await res.json();
+
+      allEvents = data.events || [];
+      document.getElementById('totalEvents').textContent = allEvents.length;
+
+      if (allEvents.length === 0) {
+        document.getElementById('allEventsList').innerHTML =
+          '<div class="empty-state"><div class="icon">📅</div>No events yet. Check back later!</div>';
+        return;
+      }
+
+      renderAllEvents();
+    } catch {
+      document.getElementById('allEventsList').innerHTML =
+        '<div class="empty-state"><div class="icon">❌</div>Could not load events.</div>';
+    }
+  }
+
+  // ─── Load My Registered Events ────────────────────────────────
+  async function loadMyEvents() {
+    try {
+      const res  = await fetch(`${API}/api/register/my/${user.id}`);
+      const data = await res.json();
+      const events = data.events || [];
+
+      myEventIds = events.map(e => e.id);
+      document.getElementById('myCount').textContent = events.length;
+
+      const container = document.getElementById('myEventsList');
+
+      if (events.length === 0) {
+        container.innerHTML = '<div class="empty-state"><div class="icon">🎫</div>You haven\'t registered for any events yet.</div>';
+        return;
+      }
+
+      container.innerHTML = events.map(e => `
+        <div class="event-card">
+          <h3>${e.title}</h3>
+          <div class="event-meta"><span>📅</span> ${formatDate(e.date)}</div>
+          <div class="event-meta"><span>🕐</span> ${e.time || 'TBA'}</div>
+          <div class="event-meta"><span>📍</span> ${e.venue}</div>
+          <p class="event-desc">${e.description || ''}</p>
+          <span class="badge badge-registered">✅ Registered</span>
+        </div>
+      `).join('');
+
+      // Re-render all events to update button states
+      if (allEvents.length > 0) renderAllEvents();
+
+    } catch {
+      document.getElementById('myEventsList').innerHTML =
+        '<div class="empty-state"><div class="icon">❌</div>Could not load your events.</div>';
+    }
+  }
+
+  // ─── Render All Events ────────────────────────────────────────
+  function renderAllEvents() {
+    const container = document.getElementById('allEventsList');
+    container.innerHTML = allEvents.map(e => {
+      const registered = myEventIds.includes(e.id);
+      return `
+        <div class="event-card">
+          <h3>${e.title}</h3>
+          <div class="event-meta"><span>📅</span> ${formatDate(e.date)}</div>
+          <div class="event-meta"><span>🕐</span> ${e.time || 'TBA'}</div>
+          <div class="event-meta"><span>📍</span> ${e.venue}</div>
+          <p class="event-desc">${e.description || ''}</p>
+          ${registered
+            ? '<span class="badge badge-registered">✅ Registered</span>'
+            : `<button class="btn-register" onclick="register(${e.id}, this)">Register</button>`
+          }
+        </div>
+      `;
+    }).join('');
+  }
+
+  // ─── Register for Event ────────────────────────────────────────
+  async function register(eventId, btn) {
+    btn.disabled = true;
+    btn.textContent = 'Registering...';
+
+    try {
+      const res  = await fetch(`${API}/api/register/${eventId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id })
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        showMsg('msg', '🎉 ' + data.message, 'success');
+        myEventIds.push(eventId);
+        document.getElementById('myCount').textContent = myEventIds.length;
+        renderAllEvents();
+      } else {
+        showMsg('msg', data.message);
+        btn.disabled = false;
+        btn.textContent = 'Register';
+      }
+    } catch {
+      showMsg('msg', 'Error registering. Try again.');
+      btn.disabled = false;
+      btn.textContent = 'Register';
+    }
+  }
+
+  // ─── Tab Switching ─────────────────────────────────────────────
+  function switchTab(tab, el) {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    el.classList.add('active');
+
+    document.getElementById('tab-all').style.display  = tab === 'all'  ? 'block' : 'none';
+    document.getElementById('tab-mine').style.display = tab === 'mine' ? 'block' : 'none';
+  }
+
+  // ─── Init ──────────────────────────────────────────────────────
+  loadAllEvents();
+  loadMyEvents();
+</script>
+</body>
+</html>
